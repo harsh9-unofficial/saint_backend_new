@@ -38,7 +38,9 @@ exports.createCollection = async (req, res) => {
 exports.getAllCollections = async (req, res) => {
   try {
     const collections = await Collection.findAll({
-      include: [{ model: Category, attributes: ["id", "name"] }],
+      include: [
+        { model: Category, as: "Category", attributes: ["id", "name"] },
+      ],
     });
     res.status(200).json(collections);
   } catch (error) {

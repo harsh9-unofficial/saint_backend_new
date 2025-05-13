@@ -12,98 +12,128 @@ const User = require("./User");
 // Category <-> Collection
 Collection.belongsTo(Category, {
   foreignKey: "categoryId",
+  as: "Category", // Add alias
   onDelete: "SET NULL",
   onUpdate: "CASCADE",
 });
 Category.hasMany(Collection, {
   foreignKey: "categoryId",
+  as: "Collections", // Add alias
 });
 
 // Category <-> Product
 Product.belongsTo(Category, {
   foreignKey: "categoryId",
+  as: "Category", // Add alias
   onDelete: "CASCADE",
   onUpdate: "CASCADE",
 });
 Category.hasMany(Product, {
   foreignKey: "categoryId",
+  as: "Products", // Add alias
 });
 
 // Collection <-> Product
 Product.belongsTo(Collection, {
   foreignKey: "collectionId",
+  as: "Collection", // Add alias
   onDelete: "SET NULL",
   onUpdate: "CASCADE",
 });
 Collection.hasMany(Product, {
   foreignKey: "collectionId",
+  as: "Products", // Add alias
 });
 
 // Product <-> Image
 Image.belongsTo(Product, {
   foreignKey: "productId",
+  as: "Product",
   onDelete: "CASCADE",
   onUpdate: "CASCADE",
 });
 Product.hasMany(Image, {
   foreignKey: "productId",
+  as: "Images", // Add alias to match frontend
 });
 
-// Product <-> Color (Many-to-Many through ProductColor)
-Product.belongsToMany(Color, {
-  through: ProductColor,
+// Product <-> ProductColor (Explicit Junction Table)
+Product.hasMany(ProductColor, {
   foreignKey: "productId",
-  otherKey: "colorId",
-  onDelete: "SET NULL",
+  as: "ProductColors", // Add alias to match getAllProducts and frontend
+  onDelete: "CASCADE",
   onUpdate: "CASCADE",
 });
-Color.belongsToMany(Product, {
-  through: ProductColor,
+ProductColor.belongsTo(Product, {
+  foreignKey: "productId",
+  as: "Product",
+});
+
+// Color <-> ProductColor
+Color.hasMany(ProductColor, {
   foreignKey: "colorId",
-  otherKey: "productId",
+  as: "ProductColors",
   onDelete: "SET NULL",
   onUpdate: "CASCADE",
 });
-ProductColor.belongsTo(Product, { foreignKey: "productId" });
-ProductColor.belongsTo(Color, { foreignKey: "colorId" });
+ProductColor.belongsTo(Color, {
+  foreignKey: "colorId",
+  as: "Color",
+});
 
-// Product <-> Size (Many-to-Many through ProductSize)
-Product.belongsToMany(Size, {
-  through: ProductSize,
+// Product <-> ProductSize (Explicit Junction Table)
+Product.hasMany(ProductSize, {
   foreignKey: "productId",
-  otherKey: "sizeId",
-  onDelete: "SET NULL",
+  as: "ProductSizes", // Add alias to match getAllProducts and frontend
+  onDelete: "CASCADE",
   onUpdate: "CASCADE",
 });
-Size.belongsToMany(Product, {
-  through: ProductSize,
+ProductSize.belongsTo(Product, {
+  foreignKey: "productId",
+  as: "Product",
+});
+
+// Size <-> ProductSize
+Size.hasMany(ProductSize, {
   foreignKey: "sizeId",
-  otherKey: "productId",
+  as: "ProductSizes",
   onDelete: "SET NULL",
   onUpdate: "CASCADE",
 });
-ProductSize.belongsTo(Product, { foreignKey: "productId" });
-ProductSize.belongsTo(Size, { foreignKey: "sizeId" });
+ProductSize.belongsTo(Size, {
+  foreignKey: "sizeId",
+  as: "Size",
+});
+
+// Optional: User <-> Contact (Assuming a relationship exists)
+User.hasMany(Contact, {
+  foreignKey: "userId", // Assuming Contact has a userId foreign key
+  as: "Contacts",
+});
+Contact.belongsTo(User, {
+  foreignKey: "userId",
+  as: "User",
+});
 
 // Synchronize models in the correct order
 const syncDatabase = async () => {
   try {
     // Sync tables without dependencies first
     await Promise.all([
-      Category.sync({ force: false }),
-      Color.sync({ force: false }),
-      Size.sync({ force: false }),
-      User.sync({ force: false }),
-      Contact.sync({ force: false }),
+      Category.sync({ alter: true }),
+      Color.sync({ alter: true }),
+      Size.sync({ alter: true }),
+      User.sync({ alter: true }),
     ]);
 
     // Sync tables with dependencies
-    await Collection.sync({ force: false });
-    await Product.sync({ force: false });
+    await Collection.sync({ alter: true });
+    await Contact.sync({ alter: true }); // Moved here if it depends on User
+    await Product.sync({ alter: true });
     await Promise.all([
-      Image.sync({ force: false }),
-      ProductColor.sync({ force: false }),
-      ProductSize.sync({ force: false }),
+      Image.sync({ alter: true }),
+      ProductColor.sync({ alter: true }),
+      ProductSize.sync({ alter: true }),
     ]);
 
     console.log("Database synchronized successfully.");
@@ -116,4 +146,14 @@ const syncDatabase = async () => {
 // Export models and sync function
 module.exports = {
   syncDatabase,
+  Category,
+  Collection,
+  Color,
+  Contact,
+  Image,
+  Product,
+  ProductColor,
+  ProductSize,
+  Size,
+  User,
 };

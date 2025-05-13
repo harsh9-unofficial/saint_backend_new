@@ -94,6 +94,7 @@ const ProductController = {
         const colorData = parsedColors.map((color) => ({
           productId: product.id,
           colorId: parseInt(color.colorId),
+          name: color.name,
         }));
         await ProductColor.bulkCreate(colorData);
       }
@@ -215,6 +216,8 @@ const ProductController = {
         await Image.bulkCreate(imageData);
       }
 
+      console.log(parsedColors);
+
       // Update colors
       if (parsedColors.length > 0) {
         await ProductColor.destroy({ where: { productId: id } });
@@ -280,35 +283,66 @@ const ProductController = {
     try {
       const products = await Product.findAll({
         include: [
-          { model: Image, attributes: ["imageUrl"] },
           {
-            model: Color,
-            through: { attributes: [] },
-            attributes: ["id", "name"],
+            model: Image,
+            as: "Images",
+            attributes: ["imageUrl"],
           },
           {
-            model: Size,
-            through: { attributes: ["originalPrice", "stock"] },
+            model: ProductColor,
+            as: "ProductColors",
             attributes: ["id", "name"],
+            include: [
+              {
+                model: Color,
+                as: "Color",
+                attributes: ["id", "name", "hexCode"],
+              },
+            ],
+          },
+          {
+            model: ProductSize,
+            as: "ProductSizes",
+            attributes: ["id", "name", "originalPrice", "stock"],
           },
           {
             model: Category,
+            as: "Category",
             attributes: ["name"],
           },
           {
             model: Collection,
+            as: "Collection",
             attributes: ["name"],
           },
         ],
       });
 
       // Transform response
-      const transformedProducts = products.map((product) => ({
-        ...product.toJSON(),
-        images: product.Images.map((image) => image.imageUrl),
-        Colors: product.Colors,
-        Sizes: product.Sizes,
-      }));
+      const transformedProducts = products.map((product) => {
+        const productJson = product.toJSON();
+        return {
+          ...productJson,
+          images: productJson.Images
+            ? productJson.Images.map((image) => image.imageUrl)
+            : [],
+          // Colors: productJson.ProductColors
+          //   ? productJson.ProductColors.map((productColor) => ({
+          //       id: productColor.id,
+          //       name: productColor.name,
+          //       hexCode: productColor.Color?.hexCode || null,
+          //     }))
+          //   : [],
+          // Sizes: productJson.ProductSizes
+          //   ? productJson.ProductSizes.map((productSize) => ({
+          //       id: productSize.id,
+          //       name: productSize.name,
+          //       originalPrice: productSize.originalPrice,
+          //       stock: productSize.stock,
+          //     }))
+          //   : [],
+        };
+      });
 
       return res.status(200).json(transformedProducts);
     } catch (error) {
@@ -326,16 +360,37 @@ const ProductController = {
     try {
       const product = await Product.findByPk(id, {
         include: [
-          { model: Image, attributes: ["imageUrl"] },
           {
-            model: Color,
-            through: { attributes: [] },
-            attributes: ["id", "name"],
+            model: Image,
+            as: "Images",
+            attributes: ["imageUrl"],
           },
           {
-            model: Size,
-            through: { attributes: ["originalPrice", "stock"] },
+            model: ProductColor,
+            as: "ProductColors",
             attributes: ["id", "name"],
+            include: [
+              {
+                model: Color,
+                as: "Color",
+                attributes: ["id", "name", "hexCode"],
+              },
+            ],
+          },
+          {
+            model: ProductSize,
+            as: "ProductSizes",
+            attributes: ["id", "name", "originalPrice", "stock"],
+          },
+          {
+            model: Category,
+            as: "Category",
+            attributes: ["name"],
+          },
+          {
+            model: Collection,
+            as: "Collection",
+            attributes: ["name"],
           },
         ],
       });
