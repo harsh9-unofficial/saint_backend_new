@@ -2,6 +2,7 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
 const Category = require("./Category");
 const Collection = require("./Collection");
+const Image = require("./Image");
 
 const Product = sequelize.define(
   "Product",
@@ -15,7 +16,7 @@ const Product = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
-        model: Category,
+        model: "categories",
         key: "id",
       },
       onDelete: "CASCADE",
@@ -25,7 +26,7 @@ const Product = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: Collection,
+        model: "collections",
         key: "id",
       },
       onDelete: "SET NULL",
@@ -58,7 +59,7 @@ const Product = sequelize.define(
       validate: {
         isArray(value) {
           if (!Array.isArray(value)) {
-            throw new Error("HowToUse must be an array");
+            throw new Error("details must be an array");
           }
         },
       },
@@ -69,7 +70,7 @@ const Product = sequelize.define(
       validate: {
         isArray(value) {
           if (!Array.isArray(value)) {
-            throw new Error("HowToUse must be an array");
+            throw new Error("sizeFit must be an array");
           }
         },
       },
@@ -80,7 +81,7 @@ const Product = sequelize.define(
       validate: {
         isArray(value) {
           if (!Array.isArray(value)) {
-            throw new Error("HowToUse must be an array");
+            throw new Error("materialCare must be an array");
           }
         },
       },
@@ -91,30 +92,16 @@ const Product = sequelize.define(
       validate: {
         isArray(value) {
           if (!Array.isArray(value)) {
-            throw new Error("HowToUse must be an array");
+            throw new Error("shippingReturn must be an array");
           }
         },
       },
     },
   },
   {
-    timestamps: true,
     tableName: "products",
+    timestamps: true,
   }
 );
-
-// Define relationships
-Product.belongsTo(Category, { foreignKey: "categoryId" });
-Category.hasMany(Product, { foreignKey: "categoryId" });
-
-Product.belongsTo(Collection, { foreignKey: "collectionId" });
-Collection.hasMany(Product, { foreignKey: "collectionId" });
-
-// Sync tables in the correct order
-(async () => {
-  await Category.sync();
-  await Collection.sync();
-  await Product.sync();
-})();
 
 module.exports = Product;

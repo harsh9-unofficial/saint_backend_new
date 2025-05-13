@@ -1,5 +1,7 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db");
+const Size = require("./Size");
+const Product = require("./Product");
 
 const ProductSize = sequelize.define(
   "ProductSize",

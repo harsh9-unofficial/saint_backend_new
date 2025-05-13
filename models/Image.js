@@ -17,7 +17,7 @@ const Image = sequelize.define(
         model: "products",
         key: "id",
       },
-      onDelete: "SET NULL",
+      onDelete: "CASCADE",
       onUpdate: "CASCADE",
     },
     imageUrl: {
@@ -26,11 +26,9 @@ const Image = sequelize.define(
     },
   },
   {
-    tableName: "productColors",
+    tableName: "images",
     timestamps: true,
   }
 );
-
-Image.belongsTo(Product, { foreignKey: "productId" });
 
 module.exports = Image;

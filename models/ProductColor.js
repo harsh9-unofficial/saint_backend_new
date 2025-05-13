@@ -13,7 +13,7 @@ const ProductColor = sequelize.define(
     },
     colorId: {
       type: DataTypes.INTEGER,
-      allowNull: true, // Changed to true to support ON DELETE SET NULL
+      allowNull: true,
       references: {
         model: "colors",
         key: "id",
@@ -23,7 +23,7 @@ const ProductColor = sequelize.define(
     },
     productId: {
       type: DataTypes.INTEGER,
-      allowNull: true, // Changed to true to support ON DELETE SET NULL
+      allowNull: true,
       references: {
         model: "products",
         key: "id",
@@ -34,7 +34,6 @@ const ProductColor = sequelize.define(
     name: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
     },
   },
   {
@@ -42,8 +41,5 @@ const ProductColor = sequelize.define(
     timestamps: true,
   }
 );
-
-ProductColor.belongsTo(Product, { foreignKey: "productId" });
-ProductColor.belongsTo(Color, { foreignKey: "colorId" });
 
 module.exports = ProductColor;

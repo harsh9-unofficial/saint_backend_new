@@ -2,7 +2,7 @@ const { DataTypes } = require("sequelize");
 const sequelize = require("../config/db"); // your sequelize instance
 
 const Contact = sequelize.define(
-  "Contacts",
+  "Contact",
   {
     id: {
       type: DataTypes.INTEGER,
@@ -18,7 +18,7 @@ const Contact = sequelize.define(
       allowNull: false,
       validate: {
         isEmail: true,
-      },         
+      },
     },
     message: {
       type: DataTypes.STRING,
@@ -26,8 +26,8 @@ const Contact = sequelize.define(
     },
   },
   {
-    timestamps: true, // Store createdAt and updatedAt automatically
-    tableName: "contacts", // Ensure the table name is correct
+    tableName: "contacts",
+    timestamps: true,
   }
 );
 

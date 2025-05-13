@@ -15,19 +15,17 @@ const Color = sequelize.define(
       allowNull: false,
       unique: true,
     },
+    hexCode: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      validate: {
+        is: /^#[0-9A-F]{6}$/i,
+      },
+    },
   },
   {
     tableName: "colors",
     timestamps: true,
   }
 );
-
-Color.belongsToMany(Product, {
-  through: "ProductColor",
-  foreignKey: "colorId",
-  otherKey: "productId",
-  onDelete: "SET NULL",
-  onUpdate: "CASCADE",
-});
-
 module.exports = Color;

@@ -43,16 +43,4 @@ const Collection = sequelize.define(
   }
 );
 
-Collection.belongsTo(Category, {
-  foreignKey: "categoryId",
-  onDelete: "SET NULL",
-  onUpdate: "CASCADE",
-});
-
-// Sync Category table first
-(async () => {
-  await Category.sync();
-  await Collection.sync();
-})();
-
 module.exports = Collection;

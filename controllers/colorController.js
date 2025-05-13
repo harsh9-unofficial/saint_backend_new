@@ -3,16 +3,25 @@ const Color = require("../models/Color");
 // Create a new color
 exports.createColor = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, hexCode } = req.body;
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
     }
+    if (!hexCode) {
+      return res.status(400).json({ error: "Hex code is required" });
+    }
+    if (!/^#[0-9A-F]{6}$/i.test(hexCode)) {
+      return res.status(400).json({ error: "Invalid hex code format" });
+    }
 
-    const color = await Color.create({ name });
+    const color = await Color.create({ name, hexCode });
     res.status(201).json(color);
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
       return res.status(400).json({ error: "Color name must be unique" });
+    }
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({ error: "Invalid hex code format" });
     }
     res.status(500).json({ error: "Server error" });
   }
@@ -44,7 +53,7 @@ exports.getColorById = async (req, res) => {
 // Update a color
 exports.updateColor = async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, hexCode } = req.body;
     const color = await Color.findByPk(req.params.id);
 
     if (!color) {
@@ -54,12 +63,21 @@ exports.updateColor = async (req, res) => {
     if (!name) {
       return res.status(400).json({ error: "Name is required" });
     }
+    if (!hexCode) {
+      return res.status(400).json({ error: "Hex code is required" });
+    }
+    if (!/^#[0-9A-F]{6}$/i.test(hexCode)) {
+      return res.status(400).json({ error: "Invalid hex code format" });
+    }
 
-    await color.update({ name });
+    await color.update({ name, hexCode });
     res.status(200).json(color);
   } catch (error) {
     if (error.name === "SequelizeUniqueConstraintError") {
       return res.status(400).json({ error: "Color name must be unique" });
+    }
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({ error: "Invalid hex code format" });
     }
     res.status(500).json({ error: "Server error" });
   }
