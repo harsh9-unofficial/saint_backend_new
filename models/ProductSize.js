@@ -15,21 +15,17 @@ const ProductSize = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: "sizes",
+        model: Size,
         key: "id",
       },
-      onDelete: "SET NULL",
-      onUpdate: "CASCADE",
     },
     productId: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: "products",
+        model: Product,
         key: "id",
       },
-      onDelete: "SET NULL",
-      onUpdate: "CASCADE",
     },
     name: {
       type: DataTypes.STRING,

@@ -2,9 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const path = require("path");
 const sequelize = require("./config/db");
-const { syncDatabase } = require("./models/association");
+const { syncDatabase, defineAssociations } = require("./models/association");
 
-// Routes
 const userRoutes = require("./routes/userRoutes");
 const contactUsRoutes = require("./routes/contactUsRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
@@ -16,13 +15,11 @@ const ratingRoutes = require("./routes/ratingRoutes");
 
 const app = express();
 
-// Middleware
 app.use(express.json());
 app.use(cors());
 app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
-// Routes
 app.use("/users", userRoutes);
 app.use("/contacts", contactUsRoutes);
 app.use("/categories", categoryRoutes);
@@ -32,11 +29,11 @@ app.use("/sizes", sizeRoutes);
 app.use("/products", productRoutes);
 app.use("/ratings", ratingRoutes);
 
-// Database sync and server start
 const PORT = process.env.PORT || 3000;
 
 const startServer = async () => {
   try {
+    defineAssociations();
     await syncDatabase();
 
     app.listen(PORT, () => {
@@ -48,7 +45,6 @@ const startServer = async () => {
   }
 };
 
-// Run the server
 startServer();
 
 module.exports = app;

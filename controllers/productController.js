@@ -12,6 +12,7 @@ const ProductController = {
   // Create a new product with associated images, colors, and sizes
   async createProduct(req, res) {
     try {
+      // Validate request body
       if (!req.body) {
         return res.status(400).json({ message: "Request body is missing" });
       }
@@ -47,6 +48,27 @@ const ProductController = {
       const parsedColors = parseIfString(colors);
       const parsedSizes = parseIfString(sizes);
 
+      // Validate sizes
+      if (parsedSizes.length > 0) {
+        const sizeIds = parsedSizes.map((size) => parseInt(size.sizeId));
+        const existingSizes = await Size.findAll({
+          where: { id: sizeIds },
+          attributes: ["id"],
+        });
+        const existingSizeIds = new Set(existingSizes.map((size) => size.id));
+        const invalidSizeIds = sizeIds.filter(
+          (sizeId) => !existingSizeIds.has(sizeId)
+        );
+        if (invalidSizeIds.length > 0) {
+          return res.status(400).json({
+            message: `Invalid sizeId(s) provided: ${invalidSizeIds.join(
+              ", "
+            )}. These sizes do not exist.`,
+          });
+        }
+      }
+
+      // Handle uploaded images
       const images = req.files
         ? req.files.map((file) => `/uploads/${file.filename}`)
         : [];
@@ -68,7 +90,7 @@ const ProductController = {
       if (images.length > 0) {
         const imageData = images.map((url) => ({
           productId: product.id,
-          imageUrl: url, // Adjust to `url` if that's the field name in Image model
+          imageUrl: url,
         }));
         await Image.bulkCreate(imageData);
       }
@@ -95,29 +117,31 @@ const ProductController = {
         await ProductSize.bulkCreate(sizeData);
       }
 
-      // Fetch created product
+      // Fetch created product with associations
       const createdProduct = await Product.findByPk(product.id, {
         include: [
           { model: Image, as: "Images", attributes: ["imageUrl"] },
           {
-            model: Color,
-            through: { attributes: [] },
-            attributes: ["id", "name"],
+            model: ProductColor,
+            as: "ProductColors",
+            attributes: ["colorId", "name"],
           },
           {
-            model: Size,
-            through: { attributes: ["originalPrice", "stock"] },
-            attributes: ["id", "name"],
+            model: ProductSize,
+            as: "ProductSizes",
+            attributes: ["sizeId", "name", "originalPrice", "stock"],
           },
         ],
       });
 
-      // Transform response
+      // Transform response to match frontend expectations
       const transformedProduct = {
         ...createdProduct.toJSON(),
-        images: createdProduct.Images.map((image) => image.imageUrl),
-        Colors: createdProduct.Colors, // Include color data
-        Sizes: createdProduct.Sizes, // Include size data
+        images: createdProduct.Images
+          ? createdProduct.Images.map((image) => image.imageUrl)
+          : [],
+        ProductColors: createdProduct.ProductColors || [],
+        ProductSizes: createdProduct.ProductSizes || [],
       };
 
       return res.status(201).json({
@@ -151,14 +175,12 @@ const ProductController = {
         sizes,
       } = req.body;
 
-      // Input validation
       if (!name || !basePrice) {
         return res
           .status(400)
           .json({ message: "Name and basePrice are required" });
       }
 
-      // Parse JSON strings if they are strings, otherwise use as-is
       const parseIfString = (value) =>
         typeof value === "string" ? JSON.parse(value) : value || [];
       const detailsArray = parseIfString(details);
@@ -177,7 +199,6 @@ const ProductController = {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      // Update product details
       await product.update({
         name,
         basePrice: parseFloat(basePrice),
@@ -190,7 +211,6 @@ const ProductController = {
         shippingReturn: shippingReturnArray,
       });
 
-      // Update images
       if (images.length > 0) {
         await Image.destroy({ where: { productId: id } });
         const imageData = images.map((url) => ({
@@ -200,36 +220,76 @@ const ProductController = {
         await Image.bulkCreate(imageData);
       }
 
-      // Update colors
+      // Update ProductColors
       if (parsedColors.length > 0) {
-        await ProductColor.destroy({ where: { productId: id } });
-        const colorData = parsedColors.map((color) => ({
-          productId: id,
-          colorId: parseInt(color.colorId),
-          name: color.name,
-        }));
-        await ProductColor.bulkCreate(colorData);
+        const existingColors = await ProductColor.findAll({
+          where: { productId: id },
+          attributes: ["colorId", "name"],
+        });
+
+        const existingColorMap = new Map(
+          existingColors.map((color) => [color.colorId, color])
+        );
+
+        const colorsToUpdate = [];
+        const colorsToCreate = [];
+        const colorIdsToKeep = new Set();
+
+        for (const color of parsedColors) {
+          const colorId = parseInt(color.colorId);
+          const newColor = {
+            productId: id,
+            colorId,
+            name: color.name,
+          };
+          colorIdsToKeep.add(colorId);
+
+          const existingColor = existingColorMap.get(colorId);
+          if (existingColor) {
+            // Check if update is needed
+            if (existingColor.name !== color.name) {
+              colorsToUpdate.push({
+                ...newColor,
+                id: existingColor.id,
+              });
+            }
+          } else {
+            colorsToCreate.push(newColor);
+          }
+        }
+
+        // Delete colors that are no longer present
+        await ProductColor.destroy({
+          where: {
+            productId: id,
+            colorId: { [Op.notIn]: Array.from(colorIdsToKeep) },
+          },
+        });
+
+        // Update existing colors
+        for (const color of colorsToUpdate) {
+          await ProductColor.update(
+            { name: color.name },
+            { where: { id: color.id } }
+          );
+        }
+
+        // Create new colors
+        if (colorsToCreate.length > 0) {
+          await ProductColor.bulkCreate(colorsToCreate);
+        }
       }
 
-      // Update sizes with validation
+      // Update ProductSizes
       if (parsedSizes.length > 0) {
-        await ProductSize.destroy({ where: { productId: id } });
-
-        // Extract all sizeIds from parsedSizes
+        // Validate sizeIds
         const sizeIds = parsedSizes.map((size) => parseInt(size.sizeId));
-
-        // Check if all sizeIds exist in the sizes table
         const existingSizes = await Size.findAll({
-          where: {
-            id: sizeIds,
-          },
+          where: { id: sizeIds },
           attributes: ["id"],
         });
 
-        // Map existing sizeIds to a Set for quick lookup
         const existingSizeIds = new Set(existingSizes.map((size) => size.id));
-
-        // Check for invalid sizeIds
         const invalidSizeIds = sizeIds.filter(
           (sizeId) => !existingSizeIds.has(sizeId)
         );
@@ -241,40 +301,95 @@ const ProductController = {
           });
         }
 
-        // If all sizeIds are valid, proceed with bulkCreate
-        const sizeData = parsedSizes.map((size) => ({
-          productId: id,
-          sizeId: parseInt(size.sizeId),
-          name: size.name,
-          originalPrice: parseFloat(size.originalPrice),
-          stock: parseInt(size.stock),
-        }));
-        await ProductSize.bulkCreate(sizeData);
+        const existingProductSizes = await ProductSize.findAll({
+          where: { productId: id },
+          attributes: ["id", "sizeId", "name", "originalPrice", "stock"],
+        });
+
+        const existingSizeMap = new Map(
+          existingProductSizes.map((size) => [size.sizeId, size])
+        );
+
+        const sizesToUpdate = [];
+        const sizesToCreate = [];
+        const sizeIdsToKeep = new Set();
+
+        for (const size of parsedSizes) {
+          const sizeId = parseInt(size.sizeId);
+          const newSize = {
+            productId: id,
+            sizeId,
+            name: size.name,
+            originalPrice: parseFloat(size.originalPrice),
+            stock: parseInt(size.stock),
+          };
+          sizeIdsToKeep.add(sizeId);
+
+          const existingSize = existingSizeMap.get(sizeId);
+          if (existingSize) {
+            // Check if update is needed
+            if (
+              existingSize.name !== size.name ||
+              existingSize.originalPrice !== parseFloat(size.originalPrice) ||
+              existingSize.stock !== parseInt(size.stock)
+            ) {
+              sizesToUpdate.push({
+                ...newSize,
+                id: existingSize.id,
+              });
+            }
+          } else {
+            sizesToCreate.push(newSize);
+          }
+        }
+
+        // Delete sizes that are no longer present
+        await ProductSize.destroy({
+          where: {
+            productId: id,
+            sizeId: { [Op.notIn]: Array.from(sizeIdsToKeep) },
+          },
+        });
+
+        // Update existing sizes
+        for (const size of sizesToUpdate) {
+          await ProductSize.update(
+            {
+              name: size.name,
+              originalPrice: size.originalPrice,
+              stock: size.stock,
+            },
+            { where: { id: size.id } }
+          );
+        }
+
+        // Create new sizes
+        if (sizesToCreate.length > 0) {
+          await ProductSize.bulkCreate(sizesToCreate);
+        }
       }
 
-      // Fetch updated product
       const updatedProduct = await Product.findByPk(id, {
         include: [
           { model: Image, as: "Images", attributes: ["imageUrl"] },
           {
             model: ProductColor,
             as: "ProductColors",
-            attributes: ["id", "name"],
+            attributes: ["colorId", "name"],
           },
           {
             model: ProductSize,
             as: "ProductSizes",
-            attributes: ["id", "name", "originalPrice", "stock"],
+            attributes: ["sizeId", "name", "originalPrice", "stock"],
           },
         ],
       });
 
-      // Transform response
       const transformedProduct = {
         ...updatedProduct.toJSON(),
         images: updatedProduct.Images.map((image) => image.imageUrl),
-        Colors: updatedProduct.Colors,
-        Sizes: updatedProduct.Sizes,
+        ProductColors: updatedProduct.ProductColors,
+        ProductSizes: updatedProduct.ProductSizes,
       };
 
       return res.status(200).json({
@@ -314,7 +429,7 @@ const ProductController = {
           {
             model: ProductSize,
             as: "ProductSizes",
-            attributes: ["id", "name", "originalPrice", "stock"],
+            attributes: ["sizeId", "name", "originalPrice", "stock"],
           },
           {
             model: Category,
@@ -393,7 +508,7 @@ const ProductController = {
           {
             model: ProductSize,
             as: "ProductSizes",
-            attributes: ["id", "name", "originalPrice", "stock"],
+            attributes: ["sizeId", "name", "originalPrice", "stock"],
           },
           {
             model: Category,

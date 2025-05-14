@@ -65,7 +65,7 @@ const getRatingsByProduct = async (req, res) => {
   try {
     const ratings = await Rating.findAll({
       where: { productId },
-      include: [{ model: User, attributes: ["username"] }], // Include user details
+      include: [{ model: User, as: "User", attributes: ["username"] }], // Include user details
       order: [["createdAt", "DESC"]],
     });
 
@@ -80,8 +80,8 @@ const getAllReviews = async (req, res) => {
   try {
     const reviews = await Rating.findAll({
       include: [
-        { model: Product, attributes: ["name"] },
-        { model: User, attributes: ["username", "email"] },
+        { model: Product, as: "Product", attributes: ["name"] },
+        { model: User, as: "User", attributes: ["username", "email"] },
       ],
       order: [["createdAt", "DESC"]],
     });

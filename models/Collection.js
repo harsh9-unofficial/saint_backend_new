@@ -14,11 +14,9 @@ const Collection = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: "categories",
+        model: Category,
         key: "id",
       },
-      onDelete: "SET NULL",
-      onUpdate: "CASCADE",
     },
     name: {
       type: DataTypes.STRING,

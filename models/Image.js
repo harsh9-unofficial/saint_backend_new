@@ -17,8 +17,6 @@ const Image = sequelize.define(
         model: "products",
         key: "id",
       },
-      onDelete: "CASCADE",
-      onUpdate: "CASCADE",
     },
     imageUrl: {
       type: DataTypes.STRING,

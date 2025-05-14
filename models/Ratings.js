@@ -18,8 +18,6 @@ const Rating = sequelize.define(
         model: Product,
         key: "id",
       },
-      onDelete: "CASCADE",
-      onUpdate: "CASCADE",
     },
     userId: {
       type: DataTypes.INTEGER,
@@ -28,8 +26,6 @@ const Rating = sequelize.define(
         model: User,
         key: "id",
       },
-      onDelete: "CASCADE",
-      onUpdate: "CASCADE",
     },
     rating: {
       type: DataTypes.FLOAT,
@@ -49,13 +45,5 @@ const Rating = sequelize.define(
     tableName: "ratings",
   }
 );
-
-
-// Sync Category table first
-(async () => {
-  await Product.sync();
-  await User.sync();
-  await Rating.sync();
-})();
 
 module.exports = Rating;

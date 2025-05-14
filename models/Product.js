@@ -14,23 +14,19 @@ const Product = sequelize.define(
     },
     categoryId: {
       type: DataTypes.INTEGER,
-      allowNull: false,
+      allowNull: true,
       references: {
-        model: "categories",
+        model: Category,
         key: "id",
       },
-      onDelete: "CASCADE",
-      onUpdate: "CASCADE",
     },
     collectionId: {
       type: DataTypes.INTEGER,
       allowNull: true,
       references: {
-        model: "collections",
+        model: Collection,
         key: "id",
       },
-      onDelete: "SET NULL",
-      onUpdate: "CASCADE",
     },
     name: {
       type: DataTypes.STRING,
