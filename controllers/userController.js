@@ -42,7 +42,7 @@ const login = async (req, res) => {
         { id: "admin", isAdmin: true },
         process.env.JWT_SECRET,
         {
-          expiresIn: "1h",
+          expiresIn: "9h",
         }
       );
       return res.json({
@@ -62,7 +62,7 @@ const login = async (req, res) => {
     }
 
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
+      expiresIn: "9h",
     });
 
     res.json({
@@ -81,7 +81,9 @@ const getAllUsers = async (req, res) => {
     });
     res.json(users);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching users", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching users", error: error.message });
   }
 };
 
@@ -98,7 +100,9 @@ const getUserById = async (req, res) => {
 
     res.json(user);
   } catch (error) {
-    res.status(500).json({ message: "Error fetching user", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error fetching user", error: error.message });
   }
 };
 
@@ -116,7 +120,9 @@ const updateUser = async (req, res) => {
 
     res.json({ message: "User updated successfully", user });
   } catch (error) {
-    res.status(500).json({ message: "Error updating user", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error updating user", error: error.message });
   }
 };
 
@@ -133,8 +139,17 @@ const deleteUser = async (req, res) => {
 
     res.json({ message: "User deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Error deleting user", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Error deleting user", error: error.message });
   }
 };
 
-module.exports = { signup, login, getAllUsers, getUserById, updateUser, deleteUser };
+module.exports = {
+  signup,
+  login,
+  getAllUsers,
+  getUserById,
+  updateUser,
+  deleteUser,
+};

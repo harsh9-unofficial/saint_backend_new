@@ -6,6 +6,7 @@ const Image = require("./Image");
 const Product = require("./Product");
 const ProductColor = require("./productColor");
 const ProductSize = require("./ProductSize");
+const Rating = require("./Ratings");
 const Size = require("./Size");
 const User = require("./User");
 
@@ -25,7 +26,7 @@ Category.hasMany(Collection, {
 Product.belongsTo(Category, {
   foreignKey: "categoryId",
   as: "Category", // Add alias
-  onDelete: "CASCADE",
+  onDelete: "SET NULL",
   onUpdate: "CASCADE",
 });
 Category.hasMany(Product, {
@@ -49,7 +50,7 @@ Collection.hasMany(Product, {
 Image.belongsTo(Product, {
   foreignKey: "productId",
   as: "Product",
-  onDelete: "CASCADE",
+  onDelete: "SET NULL",
   onUpdate: "CASCADE",
 });
 Product.hasMany(Image, {
@@ -61,7 +62,7 @@ Product.hasMany(Image, {
 Product.hasMany(ProductColor, {
   foreignKey: "productId",
   as: "ProductColors", // Add alias to match getAllProducts and frontend
-  onDelete: "CASCADE",
+  onDelete: "SET NULL",
   onUpdate: "CASCADE",
 });
 ProductColor.belongsTo(Product, {
@@ -85,7 +86,7 @@ ProductColor.belongsTo(Color, {
 Product.hasMany(ProductSize, {
   foreignKey: "productId",
   as: "ProductSizes", // Add alias to match getAllProducts and frontend
-  onDelete: "CASCADE",
+  onDelete: "SET NULL",
   onUpdate: "CASCADE",
 });
 ProductSize.belongsTo(Product, {
@@ -106,14 +107,20 @@ ProductSize.belongsTo(Size, {
 });
 
 // Optional: User <-> Contact (Assuming a relationship exists)
-User.hasMany(Contact, {
-  foreignKey: "userId", // Assuming Contact has a userId foreign key
-  as: "Contacts",
-});
-Contact.belongsTo(User, {
-  foreignKey: "userId",
-  as: "User",
-});
+// User.hasMany(Contact, {
+//   foreignKey: "userId", // Assuming Contact has a userId foreign key
+//   as: "Contacts",
+// });
+// Contact.belongsTo(User, {
+//   foreignKey: "userId",
+//   as: "User",
+// });
+
+Rating.belongsTo(Product, { foreignKey: "productId" });
+Product.hasMany(Rating, { foreignKey: "productId" });
+
+Rating.belongsTo(User, { foreignKey: "userId" });
+User.hasMany(Rating, { foreignKey: "userId" });
 
 // Synchronize models in the correct order
 const syncDatabase = async () => {

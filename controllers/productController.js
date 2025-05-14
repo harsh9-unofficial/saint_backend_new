@@ -51,22 +51,6 @@ const ProductController = {
         ? req.files.map((file) => `/uploads/${file.filename}`)
         : [];
 
-      // Log received data for debugging
-      console.log("Received data:", {
-        name,
-        basePrice,
-        description,
-        categoryId,
-        collectionId,
-        details: detailsArray,
-        sizeFit: sizeFitArray,
-        materialCare: materialCareArray,
-        shippingReturn: shippingReturnArray,
-        colors: parsedColors,
-        sizes: parsedSizes,
-        images,
-      });
-
       // Create product
       const product = await Product.create({
         name,
@@ -114,7 +98,7 @@ const ProductController = {
       // Fetch created product
       const createdProduct = await Product.findByPk(product.id, {
         include: [
-          { model: Image, attributes: ["imageUrl"] },
+          { model: Image, as: "Images", attributes: ["imageUrl"] },
           {
             model: Color,
             through: { attributes: [] },
@@ -211,12 +195,10 @@ const ProductController = {
         await Image.destroy({ where: { productId: id } });
         const imageData = images.map((url) => ({
           productId: id,
-          imageUrl: url, // Adjust to `url` if that's the field name in Image model
+          imageUrl: url,
         }));
         await Image.bulkCreate(imageData);
       }
-
-      console.log(parsedColors);
 
       // Update colors
       if (parsedColors.length > 0) {
@@ -224,13 +206,42 @@ const ProductController = {
         const colorData = parsedColors.map((color) => ({
           productId: id,
           colorId: parseInt(color.colorId),
+          name: color.name,
         }));
         await ProductColor.bulkCreate(colorData);
       }
 
-      // Update sizes
+      // Update sizes with validation
       if (parsedSizes.length > 0) {
         await ProductSize.destroy({ where: { productId: id } });
+
+        // Extract all sizeIds from parsedSizes
+        const sizeIds = parsedSizes.map((size) => parseInt(size.sizeId));
+
+        // Check if all sizeIds exist in the sizes table
+        const existingSizes = await Size.findAll({
+          where: {
+            id: sizeIds,
+          },
+          attributes: ["id"],
+        });
+
+        // Map existing sizeIds to a Set for quick lookup
+        const existingSizeIds = new Set(existingSizes.map((size) => size.id));
+
+        // Check for invalid sizeIds
+        const invalidSizeIds = sizeIds.filter(
+          (sizeId) => !existingSizeIds.has(sizeId)
+        );
+        if (invalidSizeIds.length > 0) {
+          return res.status(400).json({
+            message: `Invalid sizeId(s) provided: ${invalidSizeIds.join(
+              ", "
+            )}. These sizes do not exist.`,
+          });
+        }
+
+        // If all sizeIds are valid, proceed with bulkCreate
         const sizeData = parsedSizes.map((size) => ({
           productId: id,
           sizeId: parseInt(size.sizeId),
@@ -244,16 +255,16 @@ const ProductController = {
       // Fetch updated product
       const updatedProduct = await Product.findByPk(id, {
         include: [
-          { model: Image, attributes: ["imageUrl"] },
+          { model: Image, as: "Images", attributes: ["imageUrl"] },
           {
-            model: Color,
-            through: { attributes: [] },
+            model: ProductColor,
+            as: "ProductColors",
             attributes: ["id", "name"],
           },
           {
-            model: Size,
-            through: { attributes: ["originalPrice", "stock"] },
-            attributes: ["id", "name"],
+            model: ProductSize,
+            as: "ProductSizes",
+            attributes: ["id", "name", "originalPrice", "stock"],
           },
         ],
       });
@@ -343,6 +354,8 @@ const ProductController = {
           //   : [],
         };
       });
+
+      // console.log(transformedProducts);
 
       return res.status(200).json(transformedProducts);
     } catch (error) {
