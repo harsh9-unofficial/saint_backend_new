@@ -12,6 +12,7 @@ const sizeRoutes = require("./routes/sizeRoutes");
 const colorRoutes = require("./routes/colorRoutes");
 const productRoutes = require("./routes/productRoutes");
 const ratingRoutes = require("./routes/ratingRoutes");
+const cartRoutes = require("./routes/cartRoutes");
 
 const app = express();
 
@@ -28,6 +29,7 @@ app.use("/colors", colorRoutes);
 app.use("/sizes", sizeRoutes);
 app.use("/products", productRoutes);
 app.use("/ratings", ratingRoutes);
+app.use("/cart", cartRoutes);
 
 const PORT = process.env.PORT || 3000;
 

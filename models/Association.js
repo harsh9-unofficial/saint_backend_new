@@ -9,8 +9,10 @@ const ProductSize = require("./ProductSize");
 const Rating = require("./Ratings");
 const Size = require("./Size");
 const User = require("./User");
+const Cart = require("./Cart"); // Add Cart import
 
 const defineAssociations = () => {
+  // Existing associations...
   // Category <-> Collection
   Collection.belongsTo(Category, {
     foreignKey: "categoryId",
@@ -130,6 +132,30 @@ const defineAssociations = () => {
     foreignKey: "userId",
     as: "Ratings",
   });
+
+  // Cart <-> Product
+  Cart.belongsTo(Product, {
+    foreignKey: "productId",
+    as: "Product",
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+  });
+  Product.hasMany(Cart, {
+    foreignKey: "productId",
+    as: "Carts",
+  });
+
+  // Cart <-> User
+  Cart.belongsTo(User, {
+    foreignKey: "userId",
+    as: "User",
+    onDelete: "CASCADE",
+    onUpdate: "CASCADE",
+  });
+  User.hasMany(Cart, {
+    foreignKey: "userId",
+    as: "Carts",
+  });
 };
 
 const syncDatabase = async () => {
@@ -148,9 +174,10 @@ const syncDatabase = async () => {
       Image.sync({ alter: true }),
       ProductColor.sync({ alter: true }),
       ProductSize.sync({ alter: true }),
+      Cart.sync({ alter: true }),
     ]);
     await Rating.sync({ alter: true });
-    
+
     console.log("Database synchronized successfully.");
   } catch (error) {
     console.error("Error synchronizing database:", error);
@@ -164,6 +191,7 @@ module.exports = {
   Category,
   Collection,
   Color,
+  Cart,
   Contact,
   Image,
   Product,
