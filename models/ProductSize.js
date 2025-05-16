@@ -35,7 +35,15 @@ const ProductSize = sequelize.define(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    stock: {
+    originalQty: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    purchaseQty: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    remainingQty: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },

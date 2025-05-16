@@ -1,7 +1,7 @@
 const Product = require("../models/Product");
 const Image = require("../models/Image");
-const Color = require("../models/Color"); // Add Color model
-const Size = require("../models/Size"); // Add Size model
+const Color = require("../models/Color");
+const Size = require("../models/Size");
 const ProductColor = require("../models/productColor");
 const ProductSize = require("../models/ProductSize");
 const { Op } = require("sequelize");
@@ -9,10 +9,8 @@ const Category = require("../models/Category");
 const Collection = require("../models/Collection");
 
 const ProductController = {
-  // Create a new product with associated images, colors, and sizes
   async createProduct(req, res) {
     try {
-      // Validate request body
       if (!req.body) {
         return res.status(400).json({ message: "Request body is missing" });
       }
@@ -31,14 +29,12 @@ const ProductController = {
         sizes,
       } = req.body;
 
-      // Input validation
       if (!name || !basePrice) {
         return res
           .status(400)
           .json({ message: "Name and basePrice are required" });
       }
 
-      // Parse JSON strings if they are strings, otherwise use as-is
       const parseIfString = (value) =>
         typeof value === "string" ? JSON.parse(value) : value || [];
       const detailsArray = parseIfString(details);
@@ -48,7 +44,6 @@ const ProductController = {
       const parsedColors = parseIfString(colors);
       const parsedSizes = parseIfString(sizes);
 
-      // Validate sizes
       if (parsedSizes.length > 0) {
         const sizeIds = parsedSizes.map((size) => parseInt(size.sizeId));
         const existingSizes = await Size.findAll({
@@ -66,14 +61,22 @@ const ProductController = {
             )}. These sizes do not exist.`,
           });
         }
+
+        // Validate size data
+        for (const size of parsedSizes) {
+          const originalQty = parseInt(size.originalQty);
+          if (isNaN(originalQty)) {
+            return res.status(400).json({
+              message: `originalQty is required for size ${size.name}`,
+            });
+          }
+        }
       }
 
-      // Handle uploaded images
       const images = req.files
         ? req.files.map((file) => `/uploads/${file.filename}`)
         : [];
 
-      // Create product
       const product = await Product.create({
         name,
         basePrice: parseFloat(basePrice),
@@ -86,7 +89,6 @@ const ProductController = {
         shippingReturn: shippingReturnArray,
       });
 
-      // Create images
       if (images.length > 0) {
         const imageData = images.map((url) => ({
           productId: product.id,
@@ -95,7 +97,6 @@ const ProductController = {
         await Image.bulkCreate(imageData);
       }
 
-      // Create colors
       if (parsedColors.length > 0) {
         const colorData = parsedColors.map((color) => ({
           productId: product.id,
@@ -105,19 +106,19 @@ const ProductController = {
         await ProductColor.bulkCreate(colorData);
       }
 
-      // Create sizes
       if (parsedSizes.length > 0) {
         const sizeData = parsedSizes.map((size) => ({
           productId: product.id,
           sizeId: parseInt(size.sizeId),
           name: size.name,
           originalPrice: parseFloat(size.originalPrice),
-          stock: parseInt(size.stock),
+          originalQty: parseInt(size.originalQty),
+          purchaseQty: 0,
+          remainingQty: parseInt(size.originalQty),
         }));
         await ProductSize.bulkCreate(sizeData);
       }
 
-      // Fetch created product with associations
       const createdProduct = await Product.findByPk(product.id, {
         include: [
           { model: Image, as: "Images", attributes: ["imageUrl"] },
@@ -129,12 +130,18 @@ const ProductController = {
           {
             model: ProductSize,
             as: "ProductSizes",
-            attributes: ["sizeId", "name", "originalPrice", "stock"],
+            attributes: [
+              "sizeId",
+              "name",
+              "originalPrice",
+              "originalQty",
+              "purchaseQty",
+              "remainingQty",
+            ],
           },
         ],
       });
 
-      // Transform response to match frontend expectations
       const transformedProduct = {
         ...createdProduct.toJSON(),
         images: createdProduct.Images
@@ -156,7 +163,6 @@ const ProductController = {
     }
   },
 
-  // Update a product and its associated data
   async updateProduct(req, res) {
     const { id } = req.params;
 
@@ -220,11 +226,10 @@ const ProductController = {
         await Image.bulkCreate(imageData);
       }
 
-      // Update ProductColors
       if (parsedColors.length > 0) {
         const existingColors = await ProductColor.findAll({
           where: { productId: id },
-          attributes: ["colorId", "name"],
+          attributes: ["id", "colorId", "name"], // Include 'id' here
         });
 
         const existingColorMap = new Map(
@@ -246,7 +251,6 @@ const ProductController = {
 
           const existingColor = existingColorMap.get(colorId);
           if (existingColor) {
-            // Check if update is needed
             if (existingColor.name !== color.name) {
               colorsToUpdate.push({
                 ...newColor,
@@ -258,7 +262,6 @@ const ProductController = {
           }
         }
 
-        // Delete colors that are no longer present
         await ProductColor.destroy({
           where: {
             productId: id,
@@ -266,7 +269,6 @@ const ProductController = {
           },
         });
 
-        // Update existing colors
         for (const color of colorsToUpdate) {
           await ProductColor.update(
             { name: color.name },
@@ -274,15 +276,12 @@ const ProductController = {
           );
         }
 
-        // Create new colors
         if (colorsToCreate.length > 0) {
           await ProductColor.bulkCreate(colorsToCreate);
         }
       }
 
-      // Update ProductSizes
       if (parsedSizes.length > 0) {
-        // Validate sizeIds
         const sizeIds = parsedSizes.map((size) => parseInt(size.sizeId));
         const existingSizes = await Size.findAll({
           where: { id: sizeIds },
@@ -301,9 +300,27 @@ const ProductController = {
           });
         }
 
+        // Validate size data
+        for (const size of parsedSizes) {
+          const originalQty = parseInt(size.originalQty);
+          if (isNaN(originalQty)) {
+            return res.status(400).json({
+              message: `originalQty is required for size ${size.name}`,
+            });
+          }
+        }
+
         const existingProductSizes = await ProductSize.findAll({
           where: { productId: id },
-          attributes: ["id", "sizeId", "name", "originalPrice", "stock"],
+          attributes: [
+            "id",
+            "sizeId",
+            "name",
+            "originalPrice",
+            "originalQty",
+            "purchaseQty",
+            "remainingQty",
+          ],
         });
 
         const existingSizeMap = new Map(
@@ -316,22 +333,27 @@ const ProductController = {
 
         for (const size of parsedSizes) {
           const sizeId = parseInt(size.sizeId);
+          const existingSize = existingSizeMap.get(sizeId);
+          const newOriginalQty = parseInt(size.originalQty);
           const newSize = {
             productId: id,
             sizeId,
             name: size.name,
             originalPrice: parseFloat(size.originalPrice),
-            stock: parseInt(size.stock),
+            originalQty: newOriginalQty,
+            purchaseQty: existingSize ? existingSize.purchaseQty : 0,
+            remainingQty: existingSize
+              ? newOriginalQty - (existingSize.purchaseQty || 0)
+              : newOriginalQty,
           };
           sizeIdsToKeep.add(sizeId);
 
-          const existingSize = existingSizeMap.get(sizeId);
           if (existingSize) {
-            // Check if update is needed
             if (
               existingSize.name !== size.name ||
               existingSize.originalPrice !== parseFloat(size.originalPrice) ||
-              existingSize.stock !== parseInt(size.stock)
+              existingSize.originalQty !== newOriginalQty ||
+              existingSize.remainingQty !== newSize.remainingQty
             ) {
               sizesToUpdate.push({
                 ...newSize,
@@ -343,7 +365,6 @@ const ProductController = {
           }
         }
 
-        // Delete sizes that are no longer present
         await ProductSize.destroy({
           where: {
             productId: id,
@@ -351,19 +372,18 @@ const ProductController = {
           },
         });
 
-        // Update existing sizes
         for (const size of sizesToUpdate) {
           await ProductSize.update(
             {
               name: size.name,
               originalPrice: size.originalPrice,
-              stock: size.stock,
+              originalQty: size.originalQty,
+              remainingQty: size.remainingQty,
             },
             { where: { id: size.id } }
           );
         }
 
-        // Create new sizes
         if (sizesToCreate.length > 0) {
           await ProductSize.bulkCreate(sizesToCreate);
         }
@@ -380,7 +400,14 @@ const ProductController = {
           {
             model: ProductSize,
             as: "ProductSizes",
-            attributes: ["sizeId", "name", "originalPrice", "stock"],
+            attributes: [
+              "sizeId",
+              "name",
+              "originalPrice",
+              "originalQty",
+              "purchaseQty",
+              "remainingQty",
+            ],
           },
         ],
       });
@@ -404,7 +431,59 @@ const ProductController = {
     }
   },
 
-  // Get all products with their associated data
+  async placeOrder(req, res) {
+    try {
+      const { productId, sizeId, quantity } = req.body;
+
+      if (!productId || !sizeId || !quantity) {
+        return res.status(400).json({
+          message: "productId, sizeId, and quantity are required",
+        });
+      }
+
+      const productSize = await ProductSize.findOne({
+        where: { productId, sizeId },
+      });
+
+      if (!productSize) {
+        return res.status(404).json({
+          message: "Product size not found",
+        });
+      }
+
+      const newPurchaseQty = productSize.purchaseQty + parseInt(quantity);
+      const newRemainingQty = productSize.originalQty - newPurchaseQty;
+
+      if (newRemainingQty < 0) {
+        return res.status(400).json({
+          message: `Insufficient stock for size ${productSize.name}. Available: ${productSize.remainingQty}, Requested: ${quantity}`,
+        });
+      }
+
+      await productSize.update({
+        purchaseQty: newPurchaseQty,
+        remainingQty: newRemainingQty,
+      });
+
+      return res.status(200).json({
+        message: "Order placed successfully",
+        productSize: {
+          sizeId: productSize.sizeId,
+          name: productSize.name,
+          originalPrice: productSize.originalPrice,
+          originalQty: productSize.originalQty,
+          purchaseQty: newPurchaseQty,
+          remainingQty: newRemainingQty,
+        },
+      });
+    } catch (error) {
+      console.error("Error placing order:", error);
+      return res
+        .status(500)
+        .json({ message: "Error placing order", error: error.message });
+    }
+  },
+
   async getAllProducts(req, res) {
     try {
       const products = await Product.findAll({
@@ -429,7 +508,14 @@ const ProductController = {
           {
             model: ProductSize,
             as: "ProductSizes",
-            attributes: ["sizeId", "name", "originalPrice", "stock"],
+            attributes: [
+              "sizeId",
+              "name",
+              "originalPrice",
+              "originalQty",
+              "purchaseQty",
+              "remainingQty",
+            ],
           },
           {
             model: Category,
@@ -444,7 +530,6 @@ const ProductController = {
         ],
       });
 
-      // Transform response
       const transformedProducts = products.map((product) => {
         const productJson = product.toJSON();
         return {
@@ -452,25 +537,8 @@ const ProductController = {
           images: productJson.Images
             ? productJson.Images.map((image) => image.imageUrl)
             : [],
-          // Colors: productJson.ProductColors
-          //   ? productJson.ProductColors.map((productColor) => ({
-          //       id: productColor.id,
-          //       name: productColor.name,
-          //       hexCode: productColor.Color?.hexCode || null,
-          //     }))
-          //   : [],
-          // Sizes: productJson.ProductSizes
-          //   ? productJson.ProductSizes.map((productSize) => ({
-          //       id: productSize.id,
-          //       name: productSize.name,
-          //       originalPrice: productSize.originalPrice,
-          //       stock: productSize.stock,
-          //     }))
-          //   : [],
         };
       });
-
-      // console.log(transformedProducts);
 
       return res.status(200).json(transformedProducts);
     } catch (error) {
@@ -481,7 +549,6 @@ const ProductController = {
     }
   },
 
-  // Get a single product by ID
   async getProductById(req, res) {
     const { id } = req.params;
 
@@ -508,7 +575,14 @@ const ProductController = {
           {
             model: ProductSize,
             as: "ProductSizes",
-            attributes: ["sizeId", "name", "originalPrice", "stock"],
+            attributes: [
+              "sizeId",
+              "name",
+              "originalPrice",
+              "originalQty",
+              "purchaseQty",
+              "remainingQty",
+            ],
           },
           {
             model: Category,
@@ -527,12 +601,11 @@ const ProductController = {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      // Transform response
       const transformedProduct = {
         ...product.toJSON(),
         images: product.Images.map((image) => image.imageUrl),
-        Colors: product.Colors,
-        Sizes: product.Sizes,
+        ProductColors: product.ProductColors,
+        ProductSizes: product.ProductSizes,
       };
 
       return res.status(200).json(transformedProduct);
@@ -544,7 +617,6 @@ const ProductController = {
     }
   },
 
-  // Delete a product and its associated data
   async deleteProduct(req, res) {
     const { id } = req.params;
 
@@ -554,12 +626,10 @@ const ProductController = {
         return res.status(404).json({ message: "Product not found" });
       }
 
-      // Delete associated data
       await Image.destroy({ where: { productId: id } });
       await ProductColor.destroy({ where: { productId: id } });
       await ProductSize.destroy({ where: { productId: id } });
 
-      // Delete product
       await product.destroy();
 
       return res.status(200).json({ message: "Product deleted successfully" });
@@ -571,5 +641,4 @@ const ProductController = {
     }
   },
 };
-
 module.exports = ProductController;
